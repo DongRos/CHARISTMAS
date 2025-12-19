@@ -156,7 +156,7 @@ export default function Scene({ mode, blurLevel, snowSize, isFrozen }: SceneProp
       <pointLight position={[15, 15, 15]} intensity={2} color="#ffffff" />
       <pointLight position={[-15, -10, -15]} intensity={1.5} color="#4455ff" />
 
-      <Environment preset="night" background={false} />
+      <Environment files="/night.hdr" background={false} />
       <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={0.5} />
 
       <Sparkles 
