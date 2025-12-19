@@ -2,112 +2,50 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches:
+      - main
+      - master
 
 jobs:
   build:
-    name: Build APK
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: 20
 
-      - name: Setup Java (JDK 17)
-        uses: actions/setup-java@v4
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '17'
 
-      # 1. 安装项目依赖并构建网页资源
-      - name: Install Dependencies & Build Web
+      - name: Initialize Capacitor Android
         run: |
-          npm install
-          npm run build
-
-      # 2. 安装 Capacitor
-      - name: Install Capacitor
-        run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-
-      # 3. 初始化 Capacitor
-      - name: Initialize Capacitor
-        run: |
-          # 如果之前运行过，先清理 android 目录
-          rm -rf android
-          # 初始化 (Web 目录设为 dist)
-          npx cap init "圣诞树" "com.dongros.bulingtree" --web-dir=dist
           npx cap add android
+          npx cap sync
 
-      # 4. 处理图标 (生成 Android 所需的各种尺寸)
-      - name: Generate App Icons
-        run: |
-          # 安装 ImageMagick (如果环境未预装)
-          sudo apt-get update && sudo apt-get install -y imagemagick
-          
-          BASE_DIR="android/app/src/main/res"
-          ICON_SRC="public/logo.png"
-          
-          if [ ! -f "$ICON_SRC" ]; then
-            echo "Error: public/logo.png not found!"
-            exit 1
-          fi
-
-          echo "Generating icons..."
-          
-          # 批量生成标准图标
-          convert "$ICON_SRC" -resize 48x48   "$BASE_DIR/mipmap-mdpi/ic_launcher.png"
-          convert "$ICON_SRC" -resize 72x72   "$BASE_DIR/mipmap-hdpi/ic_launcher.png"
-          convert "$ICON_SRC" -resize 96x96   "$BASE_DIR/mipmap-xhdpi/ic_launcher.png"
-          convert "$ICON_SRC" -resize 144x144 "$BASE_DIR/mipmap-xxhdpi/ic_launcher.png"
-          convert "$ICON_SRC" -resize 192x192 "$BASE_DIR/mipmap-xxxhdpi/ic_launcher.png"
-
-          # 批量生成圆角图标
-          convert "$ICON_SRC" -resize 48x48   "$BASE_DIR/mipmap-mdpi/ic_launcher_round.png"
-          convert "$ICON_SRC" -resize 72x72   "$BASE_DIR/mipmap-hdpi/ic_launcher_round.png"
-          convert "$ICON_SRC" -resize 96x96   "$BASE_DIR/mipmap-xhdpi/ic_launcher_round.png"
-          convert "$ICON_SRC" -resize 144x144 "$BASE_DIR/mipmap-xxhdpi/ic_launcher_round.png"
-          convert "$ICON_SRC" -resize 192x192 "$BASE_DIR/mipmap-xxxhdpi/ic_launcher_round.png"
-
-      # 5. 配置 Android 权限 (修复版)
-      - name: Add Internet Permission
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          
-          # 使用替换命令将权限标签插入到 <application> 标签之前
-          # 使用 | 作为分隔符，避免转义字符冲突
-          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <application|' $MANIFEST
-          
-          # 允许明文流量 (可选)
-          sed -i 's|android:allowBackup="true"|android:allowBackup="true" android:usesCleartextTraffic="true"|g' $MANIFEST
-          
-          # 打印文件内容以供检查
-          cat $MANIFEST
-
-      # 6. 同步配置
-      - name: Sync Capacitor
-        run: npx cap sync
-
-      # 7. 打包 APK
       - name: Build APK with Gradle
-        cd android
-        run: ./gradlew assembleDebug
+        run: |
+          cd android
+          ./gradlew assembleDebug
 
-      # 8. 重命名 APK
-      - name: Rename APK
+      - name: Rename APK to BulingTree.apk
         run: |
           mv android/app/build/outputs/apk/debug/app-debug.apk BulingTree.apk
 
-      # 9. 上传 Artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BulingTree-APK
+          name: BulingTree
           path: BulingTree.apk
-          retention-days: 5
