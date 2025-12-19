@@ -30,9 +30,28 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Initialize Capacitor Android
+      - name: Initialize Capacitor & Generate Icons
         run: |
-          npx cap add android
+          # 1. 安装图标生成工具
+          npm install @capacitor/assets --save-dev
+          
+          # 2. 准备资源文件夹
+          mkdir -p assets
+          
+          # 3. 仅将 logo 复制为图标源文件 (不复制为 splash.png)
+          cp public/logo.png assets/logo.png
+          
+          # 4. 添加 Android 平台 (如果尚未添加)
+          # 注意：如果是首次运行且没有 android 目录，这步是必须的
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          
+          # 5. 生成 Android 图标
+          # 工具会读取 assets/logo.png 并生成各种尺寸的图标
+          npx capacitor-assets generate --android
+          
+          # 6. 同步 Web 代码到 Android 项目
           npx cap sync
 
       - name: Build APK with Gradle
