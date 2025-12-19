@@ -121,7 +121,7 @@ function Snow({ density, isFrozen }: { density: number, isFrozen: boolean }) {
         />
       </bufferGeometry>
       <pointsMaterial 
-        size={0.12} 
+        size={0.1 + density * 0.12} 
         color="#ffffff" 
         transparent 
         opacity={0.4} 
