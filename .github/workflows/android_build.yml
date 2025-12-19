@@ -31,64 +31,66 @@ jobs:
           npm install
           npm run build
 
-      # 2. 安装 Capacitor (用于将网页转换为 App)
+      # 2. 安装 Capacitor
       - name: Install Capacitor
         run: |
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
       # 3. 初始化 Capacitor
-      # appName="圣诞树", appId="com.dongros.bulingtree"
       - name: Initialize Capacitor
         run: |
+          # 如果之前运行过，先清理 android 目录
+          rm -rf android
+          # 初始化 (Web 目录设为 dist)
           npx cap init "圣诞树" "com.dongros.bulingtree" --web-dir=dist
           npx cap add android
 
-      # 4. 处理图标 (使用 ImageMagick 自动生成不同尺寸的图标)
-      # 将 public/logo.png 转换为 Android 标准图标路径
+      # 4. 处理图标 (生成 Android 所需的各种尺寸)
       - name: Generate App Icons
         run: |
+          # 安装 ImageMagick (如果环境未预装)
           sudo apt-get update && sudo apt-get install -y imagemagick
           
-          # 定义图标路径
           BASE_DIR="android/app/src/main/res"
           ICON_SRC="public/logo.png"
           
-          # 确保源文件存在
           if [ ! -f "$ICON_SRC" ]; then
             echo "Error: public/logo.png not found!"
             exit 1
           fi
 
-          echo "Generating icons from $ICON_SRC..."
+          echo "Generating icons..."
           
-          # 生成标准图标 (mipmap)
+          # 批量生成标准图标
           convert "$ICON_SRC" -resize 48x48   "$BASE_DIR/mipmap-mdpi/ic_launcher.png"
           convert "$ICON_SRC" -resize 72x72   "$BASE_DIR/mipmap-hdpi/ic_launcher.png"
           convert "$ICON_SRC" -resize 96x96   "$BASE_DIR/mipmap-xhdpi/ic_launcher.png"
           convert "$ICON_SRC" -resize 144x144 "$BASE_DIR/mipmap-xxhdpi/ic_launcher.png"
           convert "$ICON_SRC" -resize 192x192 "$BASE_DIR/mipmap-xxxhdpi/ic_launcher.png"
 
-          # 生成圆角图标 (简单复用方形，Android会自动处理，或者这里也可以做圆角处理)
+          # 批量生成圆角图标
           convert "$ICON_SRC" -resize 48x48   "$BASE_DIR/mipmap-mdpi/ic_launcher_round.png"
           convert "$ICON_SRC" -resize 72x72   "$BASE_DIR/mipmap-hdpi/ic_launcher_round.png"
           convert "$ICON_SRC" -resize 96x96   "$BASE_DIR/mipmap-xhdpi/ic_launcher_round.png"
           convert "$ICON_SRC" -resize 144x144 "$BASE_DIR/mipmap-xxhdpi/ic_launcher_round.png"
           convert "$ICON_SRC" -resize 192x192 "$BASE_DIR/mipmap-xxxhdpi/ic_launcher_round.png"
 
-      # 5. 配置 Android 权限
-      # 因为你的 index.html 使用了 Tailwind CDN，必须开启网络权限
+      # 5. 配置 Android 权限 (修复版)
       - name: Add Internet Permission
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # 在 <application> 标签前插入联网权限
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
           
-          # 允许明文流量 (可选，防止部分 CDN 因 HTTP 问题被挡，虽通常 CDN 为 HTTPS)
-          sed -i 's/android:allowBackup="true"/android:allowBackup="true" android:usesCleartextTraffic="true"/g' $MANIFEST
+          # 使用替换命令将权限标签插入到 <application> 标签之前
+          # 使用 | 作为分隔符，避免转义字符冲突
+          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <application|' $MANIFEST
           
+          # 允许明文流量 (可选)
+          sed -i 's|android:allowBackup="true"|android:allowBackup="true" android:usesCleartextTraffic="true"|g' $MANIFEST
+          
+          # 打印文件内容以供检查
           cat $MANIFEST
 
-      # 6. 同步配置到 Android 项目
+      # 6. 同步配置
       - name: Sync Capacitor
         run: npx cap sync
 
@@ -97,12 +99,12 @@ jobs:
         cd android
         run: ./gradlew assembleDebug
 
-      # 8. 重命名并准备上传
+      # 8. 重命名 APK
       - name: Rename APK
         run: |
           mv android/app/build/outputs/apk/debug/app-debug.apk BulingTree.apk
 
-      # 9. 上传 Artifact (你可以在 GitHub 页面下载)
+      # 9. 上传 Artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
